@@ -3,17 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <title>Visualizador 3D Ósseo</title>
+
   <script type="module"
     src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js">
   </script>
+
   <style>
     body { margin: 0; background: black; }
-    model-viewer { width: 100vw; height: 100vh; background-color: black; }
+
+    model-viewer {
+      width: 100vw;
+      height: 90vh;
+      background-color: black;
+      display: block;
+    }
+
+    select {
+      width: 100vw;
+      height: 10vh;
+      font-size: 16px;
+    }
   </style>
 </head>
+
 <body>
-  <!-- Modelo exportado do Slicer -->
+
+  <!-- Menu de seleção -->
+  <select onchange="loadModel(this.value)">
+    <option value="Segmentation.glb">Crânio</option>
+    <option value="foot__ankle.glb">Pé</option>
+  </select>
+
+  <!-- Viewer 3D -->
   <model-viewer
+    id="viewer"
     src="Segmentation.glb"
     camera-controls
     auto-rotate
@@ -22,5 +45,12 @@
     environment-image="neutral"
     alt="Modelo ósseo 3D">
   </model-viewer>
+
+  <script>
+    function loadModel(file) {
+      document.getElementById("viewer").setAttribute("src", file);
+    }
+  </script>
+
 </body>
 </html>
