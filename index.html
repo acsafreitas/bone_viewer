@@ -9,32 +9,61 @@
   </script>
 
   <style>
-    body { margin: 0; background: black; }
+    body {
+      margin: 0;
+      background: black;
+      font-family: Arial, sans-serif;
+      color: white;
+    }
+
+    /* Área dos botões */
+    .controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      display: flex;
+      gap: 10px;
+      z-index: 10;
+    }
+
+    button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      background: #222;
+      color: white;
+      font-size: 14px;
+      transition: 0.2s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+
+    button:hover {
+      background: #444;
+      transform: scale(1.05);
+    }
+
+    button.active {
+      background: #0a84ff;
+    }
 
     model-viewer {
       width: 100vw;
-      height: 90vh;
+      height: 100vh;
       background-color: black;
-      display: block;
-    }
-
-    select {
-      width: 100vw;
-      height: 10vh;
-      font-size: 16px;
     }
   </style>
 </head>
 
 <body>
 
-  <!-- Menu de seleção -->
-  <select onchange="loadModel(this.value)">
-    <option value="Segmentation.glb">Crânio</option>
-    <option value="foot__ankle.glb">Pé</option>
-  </select>
+  <!-- Botões -->
+  <div class="controls">
+    <button onclick="loadModel('Segmentation.glb', this)">Crânio</button>
+    <button onclick="loadModel('foot__ankle.glb', this)">Pé</button>
+  </div>
 
-  <!-- Viewer 3D -->
+  <!-- Viewer -->
   <model-viewer
     id="viewer"
     src="Segmentation.glb"
@@ -47,8 +76,17 @@
   </model-viewer>
 
   <script>
-    function loadModel(file) {
-      document.getElementById("viewer").setAttribute("src", file);
+    function loadModel(file, btn) {
+      const viewer = document.getElementById("viewer");
+      viewer.setAttribute("src", file);
+
+      // remover destaque de todos os botões
+      document.querySelectorAll("button").forEach(b => {
+        b.classList.remove("active");
+      });
+
+      // destacar botão clicado
+      btn.classList.add("active");
     }
   </script>
 
