@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <title>Visualizador 3D Ósseo</title>
 
+  <!-- ESSENCIAL para mobile -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <script type="module"
     src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js">
   </script>
@@ -14,43 +17,57 @@
       background: black;
       font-family: Arial, sans-serif;
       color: white;
+      overflow: hidden;
     }
 
-    /* Área dos botões */
+    /* Viewer ocupa tudo */
+    model-viewer {
+      width: 100vw;
+      height: 100vh;
+      background-color: black;
+    }
+
+    /* Container dos botões */
     .controls {
       position: absolute;
       top: 10px;
       left: 10px;
       display: flex;
       gap: 10px;
-      z-index: 10;
+      z-index: 9999;
+      flex-wrap: wrap; /* importante para mobile */
     }
 
+    /* Botões */
     button {
-      padding: 10px 16px;
+      padding: 10px 14px;
       border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      background: #222;
+      border-radius: 10px;
+      background: rgba(30,30,30,0.8);
       color: white;
       font-size: 14px;
-      transition: 0.2s;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-    }
-
-    button:hover {
-      background: #444;
-      transform: scale(1.05);
+      cursor: pointer;
+      backdrop-filter: blur(6px);
     }
 
     button.active {
       background: #0a84ff;
     }
 
-    model-viewer {
-      width: 100vw;
-      height: 100vh;
-      background-color: black;
+    /* 📱 MOBILE */
+    @media (max-width: 600px) {
+      .controls {
+        top: auto;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        justify-content: center;
+      }
+
+      button {
+        font-size: 16px;
+        padding: 12px 18px;
+      }
     }
   </style>
 </head>
@@ -59,7 +76,7 @@
 
   <!-- Botões -->
   <div class="controls">
-    <button onclick="loadModel('Segmentation.glb', this)">Pé2</button>
+    <button onclick="loadModel('Segmentation.glb', this)">Crânio</button>
     <button onclick="loadModel('foot__ankle.glb', this)">Pé</button>
   </div>
 
@@ -80,12 +97,10 @@
       const viewer = document.getElementById("viewer");
       viewer.setAttribute("src", file);
 
-      // remover destaque de todos os botões
       document.querySelectorAll("button").forEach(b => {
         b.classList.remove("active");
       });
 
-      // destacar botão clicado
       btn.classList.add("active");
     }
   </script>
