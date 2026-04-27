@@ -3,14 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <title>Visualizador 3D Ósseo</title>
-
-  <!-- ESSENCIAL para mobile -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <script type="module"
     src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js">
   </script>
-
   <style>
     body {
       margin: 0;
@@ -20,90 +16,279 @@
       overflow: hidden;
     }
 
-    /* Viewer ocupa tudo */
     model-viewer {
       width: 100vw;
       height: 100vh;
       background-color: black;
     }
 
-    /* Container dos botões */
+    /* --- BOTÕES DE MODELO --- */
     .controls {
       position: absolute;
-      top: 10px;
-      left: 10px;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
       display: flex;
-      gap: 10px;
+      gap: 8px;
       z-index: 9999;
-      flex-wrap: wrap; /* importante para mobile */
+      flex-wrap: wrap;
+      justify-content: center;
+      padding: 0 12px;
+      width: calc(100% - 24px);
+      box-sizing: border-box;
     }
 
-    /* Botões */
-    button {
-      padding: 10px 14px;
+    .controls button {
+      padding: 10px 16px;
       border: none;
       border-radius: 10px;
-      background: rgba(30,30,30,0.8);
+      background: rgba(30,30,30,0.85);
       color: white;
       font-size: 14px;
       cursor: pointer;
       backdrop-filter: blur(6px);
+      flex: 1 1 auto;
+      min-width: 80px;
+      max-width: 140px;
+      white-space: nowrap;
     }
 
-    button.active {
+    .controls button.active {
       background: #0a84ff;
     }
 
-    /* 📱 MOBILE */
-    @media (max-width: 600px) {
-      .controls {
-        top: auto;
-        bottom: 10px;
-        left: 50%;
-        transform: translateX(-50%);
-        justify-content: center;
-      }
+    /* botão debug separado — canto inferior esquerdo */
+    #debugBtn {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      z-index: 9999;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(30,30,30,0.85);
+      color: #aaa;
+      font-size: 12px;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
+    }
+    #debugBtn.active {
+      color: #00ff88;
+    }
 
-      button {
-        font-size: 16px;
-        padding: 12px 18px;
+    /* --- HOTSPOTS --- */
+    .hotspot {
+      /* área de toque 44x44px invisível, ponto visual 14px centrado */
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      position: relative;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ponto visual */
+    .hotspot::before {
+      content: '';
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #0a84ff;
+      border: 2px solid white;
+      box-sizing: border-box;
+      transition: transform 0.15s;
+    }
+
+    .hotspot:hover::before,
+    .hotspot.active::before {
+      transform: scale(1.3);
+    }
+
+    /* tooltip */
+    .hotspot .tooltip {
+      position: absolute;
+      bottom: calc(100% - 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(10,10,10,0.88);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .hotspot .tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-top-color: rgba(10,10,10,0.88);
+    }
+
+    .hotspot.active .tooltip {
+      opacity: 1;
+    }
+
+    /* --- PAINEL DEBUG --- */
+    #debug {
+      position: fixed;
+      bottom: 50px;
+      left: 12px;
+      background: rgba(0,0,0,0.85);
+      color: #00ff88;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font: 13px monospace;
+      z-index: 9999;
+      display: none;
+      max-width: 280px;
+    }
+
+    /* --- MOBILE --- */
+    @media (max-width: 600px) {
+      .controls button {
+        font-size: 13px;
+        padding: 9px 12px;
       }
     }
   </style>
 </head>
-
 <body>
 
-  <!-- Botões -->
-  <div class="controls">
-    <button onclick="loadModel('Segmentation.glb', this)">Pé2</button>
-    <button onclick="loadModel('foot__ankle.glb', this)">Pé</button>
-  </div>
+<div class="controls">
+  <button id="btn0" onclick="loadModel('foot__ankle.glb', this)">Modelo 1</button>
+  <button id="btn1" onclick="loadModel('Segmentation.glb', this)">Modelo 2</button>
+  <button id="btn2" onclick="loadModel('foot__ankle.glb', this)">Modelo 3</button>
+  <button id="btn3" onclick="loadModel('foot__ankle.glb', this)">Modelo 4</button>
+</div>
 
-  <!-- Viewer -->
-  <model-viewer
-    id="viewer"
-    src="Segmentation.glb"
-    camera-controls
-    auto-rotate
-    exposure="1.2"
-    shadow-intensity="1"
-    environment-image="neutral"
-    alt="Modelo ósseo 3D">
-  </model-viewer>
+<button onclick="toggleDebug()" id="debugBtn">⚙ Debug</button>
 
-  <script>
-    function loadModel(file, btn) {
-      const viewer = document.getElementById("viewer");
-      viewer.setAttribute("src", file);
+<div id="debug">
+  <b style="color:white">Coordenadas 3D</b>
+  <pre id="coords" style="margin:4px 0 0;">Clica num osso...</pre>
+</div>
 
-      document.querySelectorAll("button").forEach(b => {
-        b.classList.remove("active");
-      });
+<model-viewer
+  id="viewer"
+  src="foot__ankle.glb"
+  camera-controls
+  disable-pan
+  auto-rotate
+  min-field-of-view="10deg"
+  max-field-of-view="60deg"
+  exposure="1.2"
+  shadow-intensity="1"
+  environment-image="neutral">
+</model-viewer>
 
-      btn.classList.add("active");
-    }
-  </script>
+<script>
+const labels = {
+  "foot__ankle.glb": [
+    { name: "Tibia",                  pos: "48.6389m 398.6089m 82.0824m" },
+    { name: "Talus",                  pos: "44.3119m 342.6386m 90.6075m" },
+    { name: "Calcaneus",              pos: "4.1663m 312.7020m 56.0186m" },
+    { name: "Fibula",                 pos: "13.7922m 392.3915m 80.6132m" },
+    { name: "Cuboid",                 pos: "28.2396m 294.2169m 109.7141m" },
+    { name: "Navicular",              pos: "73.0085m 315.8295m 103.5961m" },
+    { name: "Lateral Cuneiform",      pos: "45.9150m 299.2043m 124.5743m" },
+    { name: "Intermediate Cuneiform", pos: "65.8608m 307.1748m 126.0887m" },
+    { name: "Medial Cuneiform",       pos: "84.0540m 300.2990m 116.1527m" },
+    { name: "Metatarsals",            pos: "67.2535m 264.8285m 144.6176m" },
+    { name: "Phalanges",              pos: "89.9891m 246.0670m 189.2854m" }
+  ],
+  "Segmentation.glb": [
+    { name: "Calcaneus",   pos: "217.1674m 330.6398m 121.9701m" },
+    { name: "Metatarsals", pos: "200.3009m 226.3734m 55.0477m" },
+    { name: "Phalanges",   pos: "196.0303m 179.0980m 28.0663m" }
+  ]
+};
 
+const viewer = document.getElementById("viewer");
+let debugMode = false;
+
+/* fecha todos os tooltips ao clicar no fundo */
+viewer.addEventListener("click", () => {
+  viewer.querySelectorAll(".hotspot")
+    .forEach(h => h.classList.remove("active"));
+});
+
+function loadModel(file, btn) {
+  viewer.setAttribute("src", file);
+  createHotspots(file);
+  document.querySelectorAll(".controls button")
+    .forEach(b => b.classList.remove("active"));
+  if (btn) btn.classList.add("active");
+}
+
+function createHotspots(modelFile) {
+  viewer.querySelectorAll(".hotspot").forEach(el => el.remove());
+  if (!labels[modelFile]) return;
+
+  labels[modelFile].forEach((label, i) => {
+    const div = document.createElement("div");
+    div.className = "hotspot";
+    div.slot = `hotspot-${i}`;
+    div.dataset.position = label.pos;
+    div.dataset.normal = "0 1 0";
+
+    const tip = document.createElement("div");
+    tip.className = "tooltip";
+    tip.textContent = label.name;
+    div.appendChild(tip);
+
+    div.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isActive = div.classList.contains("active");
+      viewer.querySelectorAll(".hotspot")
+        .forEach(h => h.classList.remove("active"));
+      if (!isActive) div.classList.add("active");
+    });
+
+    viewer.appendChild(div);
+  });
+}
+
+function toggleDebug() {
+  debugMode = !debugMode;
+  const btn = document.getElementById("debugBtn");
+  document.getElementById("debug").style.display = debugMode ? "block" : "none";
+  btn.classList.toggle("active", debugMode);
+  btn.textContent = debugMode ? "⚙ Debug ON" : "⚙ Debug";
+}
+
+/* captura coordenadas 3D ao clicar no modelo */
+viewer.addEventListener("click", (e) => {
+  if (!debugMode) return;
+  const rect = viewer.getBoundingClientRect();
+  const hit = viewer.positionAndNormalFromPoint(
+    e.clientX - rect.left,
+    e.clientY - rect.top
+  );
+  if (hit) {
+    const p = hit.position;
+    const coords = `${p.x.toFixed(4)}m ${p.y.toFixed(4)}m ${p.z.toFixed(4)}m`;
+    document.getElementById("coords").textContent = coords;
+    console.log("📍 Copia:", coords);
+  } else {
+    document.getElementById("coords").textContent = "Nenhum osso aqui";
+  }
+});
+
+document.getElementById("btn0").classList.add("active");
+createHotspots("foot__ankle.glb");
+</script>
 </body>
 </html>
