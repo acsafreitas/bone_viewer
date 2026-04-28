@@ -8,6 +8,8 @@
     src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js">
   </script>
   <style>
+    * { box-sizing: border-box; }
+
     body {
       margin: 0;
       background: black;
@@ -22,8 +24,8 @@
       background-color: black;
     }
 
-    /* --- BOTÕES DE MODELO --- */
-    .controls {
+    /* ── BARRA SUPERIOR ── */
+    .topbar {
       position: absolute;
       top: 12px;
       left: 50%;
@@ -31,15 +33,13 @@
       display: flex;
       gap: 8px;
       z-index: 9999;
-      flex-wrap: wrap;
       justify-content: center;
       padding: 0 12px;
       width: calc(100% - 24px);
-      box-sizing: border-box;
     }
 
-    .controls button {
-      padding: 10px 16px;
+    .topbar button {
+      padding: 10px 18px;
       border: none;
       border-radius: 10px;
       background: rgba(30,30,30,0.85);
@@ -47,38 +47,152 @@
       font-size: 14px;
       cursor: pointer;
       backdrop-filter: blur(6px);
-      flex: 1 1 auto;
-      min-width: 80px;
-      max-width: 140px;
       white-space: nowrap;
     }
 
-    .controls button.active {
-      background: #0a84ff;
-    }
+    .topbar button.active { background: #0a84ff; }
 
-    /* botão debug separado — canto inferior esquerdo */
-    #debugBtn {
-      position: absolute;
-      bottom: 12px;
-      left: 12px;
-      z-index: 9999;
-      padding: 8px 12px;
+    /* botão para abrir o painel */
+    #openPanelBtn {
+      padding: 10px 18px;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       background: rgba(30,30,30,0.85);
-      color: #aaa;
-      font-size: 12px;
+      color: white;
+      font-size: 14px;
       cursor: pointer;
       backdrop-filter: blur(6px);
-    }
-    #debugBtn.active {
-      color: #00ff88;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
-    /* --- HOTSPOTS --- */
+    /* ── OVERLAY ── */
+    #overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 10000;
+    }
+    #overlay.open { display: block; }
+
+    /* ── PAINEL LATERAL ── */
+    #panel {
+      position: fixed;
+      top: 0;
+      right: -360px;
+      width: 340px;
+      height: 100%;
+      background: rgba(18,18,18,0.97);
+      backdrop-filter: blur(16px);
+      z-index: 10001;
+      display: flex;
+      flex-direction: column;
+      transition: right 0.3s ease;
+      border-left: 0.5px solid rgba(255,255,255,0.08);
+    }
+    #panel.open { right: 0; }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 18px 14px;
+      border-bottom: 0.5px solid rgba(255,255,255,0.08);
+    }
+
+    .panel-header h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: white;
+    }
+
+    #closeBtn {
+      background: none;
+      border: none;
+      color: #aaa;
+      font-size: 22px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0 4px;
+    }
+
+    /* scroll */
+    .panel-body {
+      overflow-y: auto;
+      flex: 1;
+      padding: 12px 0;
+    }
+
+    /* categoria */
+    .category {
+      margin-bottom: 4px;
+    }
+
+    .category-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 18px;
+      cursor: pointer;
+      user-select: none;
+      border-radius: 0;
+      transition: background 0.15s;
+    }
+    .category-header:hover { background: rgba(255,255,255,0.05); }
+
+    .category-header span {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e0e0e0;
+    }
+
+    .category-header .arrow {
+      font-size: 11px;
+      color: #666;
+      transition: transform 0.2s;
+    }
+    .category.open .arrow { transform: rotate(180deg); }
+
+    /* lista de modelos dentro da categoria */
+    .model-list {
+      display: none;
+      padding: 4px 0 8px;
+    }
+    .category.open .model-list { display: block; }
+
+    .model-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 18px 9px 28px;
+      cursor: pointer;
+      transition: background 0.15s;
+      border-radius: 0;
+    }
+    .model-item:hover { background: rgba(255,255,255,0.05); }
+    .model-item.active { background: rgba(10,132,255,0.15); }
+
+    .model-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #444;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .model-item.active .model-dot { background: #0a84ff; }
+
+    .model-item span {
+      font-size: 13px;
+      color: #ccc;
+    }
+    .model-item.active span { color: white; }
+
+    /* ── HOTSPOTS ── */
     .hotspot {
-      /* área de toque 44x44px invisível, ponto visual 14px centrado */
       width: 44px;
       height: 44px;
       border-radius: 50%;
@@ -87,13 +201,10 @@
       cursor: pointer;
       padding: 0;
       position: relative;
-      box-sizing: border-box;
       display: flex;
       align-items: center;
       justify-content: center;
     }
-
-    /* ponto visual */
     .hotspot::before {
       content: '';
       width: 14px;
@@ -101,16 +212,11 @@
       border-radius: 50%;
       background: #0a84ff;
       border: 2px solid white;
-      box-sizing: border-box;
       transition: transform 0.15s;
     }
-
     .hotspot:hover::before,
-    .hotspot.active::before {
-      transform: scale(1.3);
-    }
+    .hotspot.active::before { transform: scale(1.3); }
 
-    /* tooltip */
     .hotspot .tooltip {
       position: absolute;
       bottom: calc(100% - 6px);
@@ -126,7 +232,6 @@
       opacity: 0;
       transition: opacity 0.15s;
     }
-
     .hotspot .tooltip::after {
       content: '';
       position: absolute;
@@ -136,12 +241,25 @@
       border: 5px solid transparent;
       border-top-color: rgba(10,10,10,0.88);
     }
+    .hotspot.active .tooltip { opacity: 1; }
 
-    .hotspot.active .tooltip {
-      opacity: 1;
+    /* ── DEBUG ── */
+    #debugBtn {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      z-index: 9999;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(30,30,30,0.85);
+      color: #aaa;
+      font-size: 12px;
+      cursor: pointer;
+      backdrop-filter: blur(6px);
     }
+    #debugBtn.active { color: #00ff88; }
 
-    /* --- PAINEL DEBUG --- */
     #debug {
       position: fixed;
       bottom: 50px;
@@ -156,31 +274,44 @@
       max-width: 280px;
     }
 
-    /* --- MOBILE --- */
+    /* ── MOBILE ── */
     @media (max-width: 600px) {
-      .controls button {
-        font-size: 13px;
-        padding: 9px 12px;
-      }
+      #panel { width: 100%; right: -100%; }
+      .topbar button, #openPanelBtn { font-size: 13px; padding: 9px 12px; }
     }
   </style>
 </head>
 <body>
 
-<div class="controls">
-  <button id="btn0" onclick="loadModel('foot__ankle.glb', this)">Modelo 1</button>
-  <button id="btn1" onclick="loadModel('Segmentation.glb', this)">Modelo 2</button>
-  <button id="btn2" onclick="loadModel('foot__ankle.glb', this)">Modelo 3</button>
-  <button id="btn3" onclick="loadModel('foot__ankle.glb', this)">Modelo 4</button>
+<!-- BARRA SUPERIOR -->
+<div class="topbar">
+  <button id="btn0" onclick="loadModel('foot__ankle.glb', this)">Model 1</button>
+  <button id="btn1" onclick="loadModel('Segmentation.glb', this)">Model 2</button>
+  <button id="openPanelBtn" onclick="openPanel()">Fractures ▾</button>
 </div>
 
-<button onclick="toggleDebug()" id="debugBtn">⚙ Debug</button>
+<!-- OVERLAY -->
+<div id="overlay" onclick="closePanel()"></div>
 
+<!-- PAINEL LATERAL -->
+<div id="panel">
+  <div class="panel-header">
+    <h2>Fractures types</h2>
+    <button id="closeBtn" onclick="closePanel()">✕</button>
+  </div>
+  <div class="panel-body" id="panelBody">
+    <!-- gerado pelo JS -->
+  </div>
+</div>
+
+<!-- DEBUG -->
+<button onclick="toggleDebug()" id="debugBtn">⚙ Debug</button>
 <div id="debug">
   <b style="color:white">Coordenadas 3D</b>
   <pre id="coords" style="margin:4px 0 0;">Clica num osso...</pre>
 </div>
 
+<!-- VIEWER -->
 <model-viewer
   id="viewer"
   src="foot__ankle.glb"
@@ -195,6 +326,102 @@
 </model-viewer>
 
 <script>
+/* ═══════════════════════════════════════════
+   BASE DE DADOS DE FRATURAS
+   Cada categoria tem um nome e uma lista de modelos.
+   Muda os ficheiros .glb quando precisares.
+═══════════════════════════════════════════ */
+const fractureData = [
+  {
+    category: "Calcaneus Fractures",
+    models: [
+      { name: "Intra-articular fracture",         file: "foot__ankle.glb" },
+      { name: "Extra-articular fracture",    file: "foot__ankle.glb" },
+      { name: "Sanders I",      file: "foot__ankle.glb" },
+      { name: "Sanders II",      file: "foot__ankle.glb" },
+      { name: "Sanders III",      file: "foot__ankle.glb" },
+      { name: "Sanders IV",      file: "foot__ankle.glb" },
+    ]
+  },
+  {
+    category: "Talus Fractures",
+    models: [
+      { name: "Talar head fracture",           file: "foot__ankle.glb" },
+      { name: "Talar neck fracture",           file: "foot__ankle.glb" },
+      { name: "Talar body fracture",           file: "foot__ankle.glb" },
+      { name: "Hawkins I",           file: "foot__ankle.glb" },
+      { name: "Hawkins II",          file: "foot__ankle.glb" },
+      { name: "Hawkins III",         file: "foot__ankle.glb" },
+      { name: "Hawkins IV",          file: "foot__ankle.glb" },
+    ]
+  },
+  {
+    category: "Matatarsals Fractures",
+    models: [
+      { name: "Base fracture",    file: "foot__ankle.glb" },
+      { name: "Neck fracture",file: "foot__ankle.glb" },
+      { name: "Shaft fracture",     file: "foot__ankle.glb" },
+      { name: "Zone 1: avulsion fracture",     file: "foot__ankle.glb" },
+      { name: "Zone 2: Jones fracture",     file: "foot__ankle.glb" },
+      { name: "Zone 3: proximal shaft fracture",     file: "foot__ankle.glb" },
+      { name: "Dancer’s fracture",     file: "foot__ankle.glb" },
+    ]
+  },
+  {
+    category: "Ankle Fractures",
+    models: [
+      { name: "Unimalleolar fracture",             file: "foot__ankle.glb" },
+      { name: "Bimalleolar fracture",             file: "foot__ankle.glb" },
+      { name: "Trimalleolar fracture",             file: "foot__ankle.glb" },
+      { name: "Supination-external rotation",          file: "foot__ankle.glb" },
+      { name: "Supination-adduction",         file: "foot__ankle.glb" },
+      { name: "Pronation-external rotation",         file: "foot__ankle.glb" },
+      { name: "Pronation-abduction",         file: "foot__ankle.glb" },
+    ]
+  },
+  {
+    category: "Navicular Fratures",
+    models: [
+      { name: "Navicular body fracture",            file: "foot__ankle.glb" },
+      { name: "Avulsion fracture",             file: "foot__ankle.glb" },
+      { name: "Stress fracture",             file: "foot__ankle.glb" },
+    ]
+  },
+  {
+    category: "Cuneiforms Fratures",
+    models: [
+      { name: "Isolated fracture",            file: "foot__ankle.glb" },
+      { name: "Associated fracture - Lisfranc",             file: "foot__ankle.glb" },
+    ]
+  },
+  {
+    category: "Fibula Fratures",
+    models: [
+      { name: "Type A: below syndesmosis",            file: "foot__ankle.glb" },
+      { name: "Type B: at syndesmosis",             file: "foot__ankle.glb" },
+      { name: "Type C: above syndesmosis",             file: "foot__ankle.glb" },
+    ]
+  },
+  {
+    category: "Cuboid Fratures",
+    models: [
+      { name: "Avulsion fracture",            file: "foot__ankle.glb" },
+      { name: "Compression fracture",             file: "foot__ankle.glb" },
+      { name: "Nutcracker fracture",             file: "foot__ankle.glb" },
+    ]
+  },
+  {
+    category: "Phalanges Fractures",
+    models: [
+      { name: "Phalangeal fracture",    file: "foot__ankle.glb" },
+      { name: "Interphalangeal dislocation",      file: "foot__ankle.glb" },
+    ]
+  },
+];
+
+/* ═══════════════════════════════════════════
+   ETIQUETAS DOS HOTSPOTS POR FICHEIRO
+═══════════════════════════════════════════ */
 const labels = {
   "foot__ankle.glb": [
     { name: "Tibia",                  pos: "48.6389m 398.6089m 82.0824m" },
@@ -210,25 +437,83 @@ const labels = {
     { name: "Phalanges",              pos: "89.9891m 246.0670m 189.2854m" }
   ],
   "Segmentation.glb": [
-    { name: "Calcaneus",   pos: "217.1674m 330.6398m 121.9701m" },
-    { name: "Metatarsals", pos: "200.3009m 226.3734m 55.0477m" },
-    { name: "Phalanges",   pos: "196.0303m 179.0980m 28.0663m" }
+    { name: "Calcaneus",              pos: "217.1674m 330.6398m 121.9701m" },
+    { name: "Metatarsals",            pos: "200.3009m 226.3734m 55.0477m" },
+    { name: "Phalanges",              pos: "196.0303m 179.0980m 28.0663m" }
   ]
 };
 
+/* ═══════════════════════════════════════════
+   ESTADO
+═══════════════════════════════════════════ */
 const viewer = document.getElementById("viewer");
 let debugMode = false;
+let activeModelItem = null;
 
-/* fecha todos os tooltips ao clicar no fundo */
+/* ═══════════════════════════════════════════
+   PAINEL
+═══════════════════════════════════════════ */
+function openPanel()  {
+  document.getElementById("panel").classList.add("open");
+  document.getElementById("overlay").classList.add("open");
+}
+function closePanel() {
+  document.getElementById("panel").classList.remove("open");
+  document.getElementById("overlay").classList.remove("open");
+}
+
+/* gera o HTML do painel a partir de fractureData */
+function buildPanel() {
+  const body = document.getElementById("panelBody");
+  body.innerHTML = "";
+
+  fractureData.forEach((cat, ci) => {
+    const catDiv = document.createElement("div");
+    catDiv.className = "category";
+
+    const header = document.createElement("div");
+    header.className = "category-header";
+    header.innerHTML = `<span>${cat.category}</span><span class="arrow">▼</span>`;
+    header.addEventListener("click", () => catDiv.classList.toggle("open"));
+
+    const list = document.createElement("div");
+    list.className = "model-list";
+
+    cat.models.forEach((model, mi) => {
+      const item = document.createElement("div");
+      item.className = "model-item";
+      item.innerHTML = `<div class="model-dot"></div><span>${model.name}</span>`;
+      item.addEventListener("click", () => {
+        // remove active anterior
+        if (activeModelItem) activeModelItem.classList.remove("active");
+        item.classList.add("active");
+        activeModelItem = item;
+
+        // carrega modelo e fecha painel
+        loadModel(model.file, null);
+        closePanel();
+      });
+      list.appendChild(item);
+    });
+
+    catDiv.appendChild(header);
+    catDiv.appendChild(list);
+    body.appendChild(catDiv);
+  });
+}
+
+/* ═══════════════════════════════════════════
+   VIEWER
+═══════════════════════════════════════════ */
 viewer.addEventListener("click", () => {
-  viewer.querySelectorAll(".hotspot")
-    .forEach(h => h.classList.remove("active"));
+  viewer.querySelectorAll(".hotspot").forEach(h => h.classList.remove("active"));
 });
 
 function loadModel(file, btn) {
   viewer.setAttribute("src", file);
   createHotspots(file);
-  document.querySelectorAll(".controls button")
+  // atualiza botões da topbar
+  document.querySelectorAll(".topbar button[id^='btn']")
     .forEach(b => b.classList.remove("active"));
   if (btn) btn.classList.add("active");
 }
@@ -252,8 +537,7 @@ function createHotspots(modelFile) {
     div.addEventListener("click", (e) => {
       e.stopPropagation();
       const isActive = div.classList.contains("active");
-      viewer.querySelectorAll(".hotspot")
-        .forEach(h => h.classList.remove("active"));
+      viewer.querySelectorAll(".hotspot").forEach(h => h.classList.remove("active"));
       if (!isActive) div.classList.add("active");
     });
 
@@ -261,6 +545,9 @@ function createHotspots(modelFile) {
   });
 }
 
+/* ═══════════════════════════════════════════
+   DEBUG
+═══════════════════════════════════════════ */
 function toggleDebug() {
   debugMode = !debugMode;
   const btn = document.getElementById("debugBtn");
@@ -269,7 +556,6 @@ function toggleDebug() {
   btn.textContent = debugMode ? "⚙ Debug ON" : "⚙ Debug";
 }
 
-/* captura coordenadas 3D ao clicar no modelo */
 viewer.addEventListener("click", (e) => {
   if (!debugMode) return;
   const rect = viewer.getBoundingClientRect();
@@ -287,6 +573,10 @@ viewer.addEventListener("click", (e) => {
   }
 });
 
+/* ═══════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════ */
+buildPanel();
 document.getElementById("btn0").classList.add("active");
 createHotspots("foot__ankle.glb");
 </script>
