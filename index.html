@@ -16,6 +16,9 @@
       font-family: Arial, sans-serif;
       color: white;
       overflow: hidden;
+      /* ══ ESPELHO PEPPER'S GHOST ══ */
+      transform: scaleX(-1);
+      transform-origin: center center;
     }
 
     model-viewer {
@@ -52,7 +55,6 @@
 
     .topbar button.active { background: #0a84ff; }
 
-    /* botão para abrir o painel */
     #openPanelBtn {
       padding: 10px 18px;
       border: none;
@@ -119,17 +121,13 @@
       padding: 0 4px;
     }
 
-    /* scroll */
     .panel-body {
       overflow-y: auto;
       flex: 1;
       padding: 12px 0;
     }
 
-    /* categoria */
-    .category {
-      margin-bottom: 4px;
-    }
+    .category { margin-bottom: 4px; }
 
     .category-header {
       display: flex;
@@ -138,29 +136,14 @@
       padding: 11px 18px;
       cursor: pointer;
       user-select: none;
-      border-radius: 0;
       transition: background 0.15s;
     }
     .category-header:hover { background: rgba(255,255,255,0.05); }
-
-    .category-header span {
-      font-size: 14px;
-      font-weight: 600;
-      color: #e0e0e0;
-    }
-
-    .category-header .arrow {
-      font-size: 11px;
-      color: #666;
-      transition: transform 0.2s;
-    }
+    .category-header span { font-size: 14px; font-weight: 600; color: #e0e0e0; }
+    .category-header .arrow { font-size: 11px; color: #666; transition: transform 0.2s; }
     .category.open .arrow { transform: rotate(180deg); }
 
-    /* lista de modelos dentro da categoria */
-    .model-list {
-      display: none;
-      padding: 4px 0 8px;
-    }
+    .model-list { display: none; padding: 4px 0 8px; }
     .category.open .model-list { display: block; }
 
     .model-item {
@@ -170,7 +153,6 @@
       padding: 9px 18px 9px 28px;
       cursor: pointer;
       transition: background 0.15s;
-      border-radius: 0;
     }
     .model-item:hover { background: rgba(255,255,255,0.05); }
     .model-item.active { background: rgba(10,132,255,0.15); }
@@ -184,17 +166,13 @@
       transition: background 0.15s;
     }
     .model-item.active .model-dot { background: #0a84ff; }
-
-    .model-item span {
-      font-size: 13px;
-      color: #ccc;
-    }
+    .model-item span { font-size: 13px; color: #ccc; }
     .model-item.active span { color: white; }
 
     /* ── HOTSPOTS ── */
     .hotspot {
-      width: 44px;
-      height: 44px;
+      width: 54px;
+      height: 54px;
       border-radius: 50%;
       background: transparent;
       border: none;
@@ -207,11 +185,12 @@
     }
     .hotspot::before {
       content: '';
-      width: 14px;
-      height: 14px;
+      width: 18px;
+      height: 18px;
       border-radius: 50%;
       background: #0a84ff;
-      border: 2px solid white;
+      border: 3px solid white;
+      box-shadow: 0 0 10px rgba(10,132,255,0.8), 0 0 20px rgba(10,132,255,0.4);
       transition: transform 0.15s;
     }
     .hotspot:hover::before,
@@ -219,18 +198,23 @@
 
     .hotspot .tooltip {
       position: absolute;
-      bottom: calc(100% - 6px);
+      bottom: calc(100% - 4px);
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(10,10,10,0.88);
+      background: #000000;
       color: white;
-      padding: 5px 10px;
-      border-radius: 8px;
-      font-size: 13px;
+      padding: 12px 22px;
+      border-radius: 10px;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
       white-space: nowrap;
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.15s;
+      border: 2px solid rgba(10,132,255,0.8);
+      text-shadow: 0 0 8px rgba(10,132,255,0.9);
+      box-shadow: 0 0 16px rgba(10,132,255,0.4);
     }
     .hotspot .tooltip::after {
       content: '';
@@ -238,8 +222,8 @@
       top: 100%;
       left: 50%;
       transform: translateX(-50%);
-      border: 5px solid transparent;
-      border-top-color: rgba(10,10,10,0.88);
+      border: 6px solid transparent;
+      border-top-color: rgba(10,132,255,0.7);
     }
     .hotspot.active .tooltip { opacity: 1; }
 
@@ -299,9 +283,7 @@
     <h2>Fractures types</h2>
     <button id="closeBtn" onclick="closePanel()">✕</button>
   </div>
-  <div class="panel-body" id="panelBody">
-    <!-- gerado pelo JS -->
-  </div>
+  <div class="panel-body" id="panelBody"></div>
 </div>
 
 <!-- DEBUG -->
@@ -326,11 +308,6 @@
 </model-viewer>
 
 <script>
-/* ═══════════════════════════════════════════
-   BASE DE DADOS DE FRATURAS
-   Cada categoria tem um nome e uma lista de modelos.
-   Muda os ficheiros .glb quando precisares.
-═══════════════════════════════════════════ */
 const fractureData = [
   {
     category: "Calcaneus Fractures",
@@ -364,7 +341,7 @@ const fractureData = [
       { name: "Zone 1: avulsion fracture",     file: "foot__ankle.glb" },
       { name: "Zone 2: Jones fracture",     file: "foot__ankle.glb" },
       { name: "Zone 3: proximal shaft fracture",     file: "foot__ankle.glb" },
-      { name: "Dancer’s fracture",     file: "foot__ankle.glb" },
+      { name: "Dancer's fracture",     file: "foot__ankle.glb" },
     ]
   },
   {
@@ -419,9 +396,6 @@ const fractureData = [
   },
 ];
 
-/* ═══════════════════════════════════════════
-   ETIQUETAS DOS HOTSPOTS POR FICHEIRO
-═══════════════════════════════════════════ */
 const labels = {
   "foot__ankle.glb": [
     { name: "Tibia",                  pos: "48.6389m 398.6089m 82.0824m" },
@@ -449,16 +423,10 @@ const labels = {
   ]
 };
 
-/* ═══════════════════════════════════════════
-   ESTADO
-═══════════════════════════════════════════ */
 const viewer = document.getElementById("viewer");
 let debugMode = false;
 let activeModelItem = null;
 
-/* ═══════════════════════════════════════════
-   PAINEL
-═══════════════════════════════════════════ */
 function openPanel()  {
   document.getElementById("panel").classList.add("open");
   document.getElementById("overlay").classList.add("open");
@@ -468,49 +436,37 @@ function closePanel() {
   document.getElementById("overlay").classList.remove("open");
 }
 
-/* gera o HTML do painel a partir de fractureData */
 function buildPanel() {
   const body = document.getElementById("panelBody");
   body.innerHTML = "";
-
   fractureData.forEach((cat, ci) => {
     const catDiv = document.createElement("div");
     catDiv.className = "category";
-
     const header = document.createElement("div");
     header.className = "category-header";
     header.innerHTML = `<span>${cat.category}</span><span class="arrow">▼</span>`;
     header.addEventListener("click", () => catDiv.classList.toggle("open"));
-
     const list = document.createElement("div");
     list.className = "model-list";
-
     cat.models.forEach((model, mi) => {
       const item = document.createElement("div");
       item.className = "model-item";
       item.innerHTML = `<div class="model-dot"></div><span>${model.name}</span>`;
       item.addEventListener("click", () => {
-        // remove active anterior
         if (activeModelItem) activeModelItem.classList.remove("active");
         item.classList.add("active");
         activeModelItem = item;
-
-        // carrega modelo e fecha painel
         loadModel(model.file, null);
         closePanel();
       });
       list.appendChild(item);
     });
-
     catDiv.appendChild(header);
     catDiv.appendChild(list);
     body.appendChild(catDiv);
   });
 }
 
-/* ═══════════════════════════════════════════
-   VIEWER
-═══════════════════════════════════════════ */
 viewer.addEventListener("click", () => {
   viewer.querySelectorAll(".hotspot").forEach(h => h.classList.remove("active"));
 });
@@ -518,7 +474,6 @@ viewer.addEventListener("click", () => {
 function loadModel(file, btn) {
   viewer.setAttribute("src", file);
   createHotspots(file);
-  // atualiza botões da topbar
   document.querySelectorAll(".topbar button[id^='btn']")
     .forEach(b => b.classList.remove("active"));
   if (btn) btn.classList.add("active");
@@ -527,33 +482,26 @@ function loadModel(file, btn) {
 function createHotspots(modelFile) {
   viewer.querySelectorAll(".hotspot").forEach(el => el.remove());
   if (!labels[modelFile]) return;
-
   labels[modelFile].forEach((label, i) => {
     const div = document.createElement("div");
     div.className = "hotspot";
     div.slot = `hotspot-${i}`;
     div.dataset.position = label.pos;
     div.dataset.normal = "0 1 0";
-
     const tip = document.createElement("div");
     tip.className = "tooltip";
     tip.textContent = label.name;
     div.appendChild(tip);
-
     div.addEventListener("click", (e) => {
       e.stopPropagation();
       const isActive = div.classList.contains("active");
       viewer.querySelectorAll(".hotspot").forEach(h => h.classList.remove("active"));
       if (!isActive) div.classList.add("active");
     });
-
     viewer.appendChild(div);
   });
 }
 
-/* ═══════════════════════════════════════════
-   DEBUG
-═══════════════════════════════════════════ */
 function toggleDebug() {
   debugMode = !debugMode;
   const btn = document.getElementById("debugBtn");
@@ -579,9 +527,6 @@ viewer.addEventListener("click", (e) => {
   }
 });
 
-/* ═══════════════════════════════════════════
-   INIT
-═══════════════════════════════════════════ */
 buildPanel();
 document.getElementById("btn0").classList.add("active");
 createHotspots("foot__ankle.glb");
