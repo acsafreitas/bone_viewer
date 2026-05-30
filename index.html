@@ -116,9 +116,6 @@
       z-index: 9999;
       opacity: 0;
       transition: opacity 0.2s ease;
-      /* scaleX(-1) no body afeta fixed — contrariamos aqui */
-      transform: scaleX(-1);
-      transform-origin: center center;
     }
     #segLabel.visible { opacity: 1; }
 
@@ -251,29 +248,8 @@
 </model-viewer>
 
 <script>
-// ═══════════════════════════════════════════════════════════
-//  CONFIGURAÇÃO DOS SEGMENTOS
-//
-//  Cada GLB tem um único mesh com N primitivas:
-//    primitive 0 → osso base (sem label)
-//    primitive 1, 2, 3… → anomalias
-//
-//  primitiveIndex: índice da primitiva (1-based para anomalias)
-//  label: nome a mostrar
-//  size:  texto secundário (deixa "" para omitir)
-//  color: cor da label em hex
-//
-//  Como descobrir os índices: ativa Debug e clica — mostra
-//  "primitive: N  material: mtlXXXX"
-// ═══════════════════════════════════════════════════════════
 const segmentConfig = {
 
-  // Case 1 — Tentativa 4
-  // Centroids from GLB accessor min/max (Draco compressed)
-  
-
-  // Case 1 — Tentativa 6
-  // Centroids from accessor min/max (KHR_draco_mesh_compression)
   "Segmentation1_6.glb": {
     segments: [
       { primitiveIndex: 1, label: "Anomalia A", size: "", color: "#ff4d4d", pos: "-16.6481m 10.1325m -2.3308m" },
@@ -282,8 +258,6 @@ const segmentConfig = {
     ]
   },
 
-  // Case 2 — Tentativa 1
-  // Centroids from accessor min/max (KHR_draco_mesh_compression)
   "Segmentation2_1.glb": {
     segments: [
       { primitiveIndex: 1, label: "Anomalia 1", size: "", color: "#ff4d4d", pos: "1.8802m 44.6687m -60.8941m" },
@@ -296,9 +270,6 @@ const segmentConfig = {
 
 };
 
-// ═══════════════════════════════════════════════════════════
-//  DADOS DOS CASOS E HOTSPOTS
-// ═══════════════════════════════════════════════════════════
 const fractureData = [
   {
     category: "Case 1",
@@ -310,7 +281,6 @@ const fractureData = [
     category: "Case 2",
     models: [
       { name: "Tentativa 1", file: "Segmentation2_1.glb" },
-      
     ]
   },
   {
@@ -350,25 +320,24 @@ const labels = {
   ]
 };
 
-// ═══════════════════════════════════════════════════════════
-//  ESTADO
-// ═══════════════════════════════════════════════════════════
 let currentModel = null;
 let debugMode    = false;
 let activeModelItem = null;
 let labelTimeout = null;
 
-const viewer     = document.getElementById("viewer");
-const segLabel   = document.getElementById("segLabel");
+const viewer        = document.getElementById("viewer");
+const segLabel      = document.getElementById("segLabel");
 const segLabelInner = document.getElementById("segLabelInner");
-const labelName  = document.getElementById("segLabelName");
-const labelSize  = document.getElementById("segLabelSize");
-const labelArrow = document.getElementById("segLabelArrow");
+const labelName     = document.getElementById("segLabelName");
+const labelSize     = document.getElementById("segLabelSize");
+const labelArrow    = document.getElementById("segLabelArrow");
 
-// ── Mostra a label flutuante numa posição do ecrã
-// O body tem scaleX(-1), o que afecta elementos fixed.
-// Contrariamos isso: label tem scaleX(-1) próprio + espelhamos o X.
-function showSegLabel(x, y, seg) {
+// ── Mostra a label.
+// O #segLabel tem scaleX(-1) próprio para contra-espelhar o body.
+// Como está em position:fixed dentro de um contexto com transform,
+// o eixo X do fixed também fica espelhado: left:0 é à DIREITA do ecrã.
+// Por isso: left = window.innerWidth - x - w/2  (espelha a posição)
+function showSegLabel(clientX, clientY, seg) {
   labelName.textContent = seg.label;
   labelSize.textContent = seg.size || "";
   labelSize.style.display = seg.size ? "block" : "none";
@@ -376,15 +345,16 @@ function showSegLabel(x, y, seg) {
   segLabelInner.style.setProperty("--lcolor", seg.color);
   labelArrow.style.setProperty("--lcolor", seg.color);
 
-  const mirroredX = window.innerWidth - x;
-
   segLabel.classList.add("visible");
 
   requestAnimationFrame(() => {
     const w = segLabel.offsetWidth;
     const h = segLabel.offsetHeight;
-    segLabel.style.left = (mirroredX - w / 2) + "px";
-    segLabel.style.top  = (y - h - 16) + "px";
+    // O #segLabel não tem contra-espelhamento, fica espelhado com o body.
+    // O eixo X do fixed está invertido: left:0 = direita do ecrã.
+    // Então: left = window.innerWidth - clientX - w/2  posiciona sobre o clique.
+    segLabel.style.left = (window.innerWidth - clientX - w / 2) + "px";
+    segLabel.style.top  = (clientY - h - 16) + "px";
   });
 
   clearTimeout(labelTimeout);
@@ -396,7 +366,6 @@ function hideSegLabel() {
   segLabel.classList.remove("visible");
 }
 
-// ── Encontra o segmento pelo índice da primitiva clicada
 function findSegmentByPrimitive(primitiveIndex) {
   if (!segmentConfig[currentModel]) return null;
   return segmentConfig[currentModel].segments.find(
@@ -404,7 +373,6 @@ function findSegmentByPrimitive(primitiveIndex) {
   ) || null;
 }
 
-// ── Clique no viewer: detecta segmento pela primitiva e mostra label
 viewer.addEventListener("click", e => {
   viewer.querySelectorAll(".hotspot").forEach(h => h.classList.remove("active"));
 
@@ -412,7 +380,6 @@ viewer.addEventListener("click", e => {
   const lx = e.clientX - rect.left;
   const ly = e.clientY - rect.top;
 
-  // Debug
   if (debugMode) {
     const hit = viewer.positionAndNormalFromPoint(lx, ly);
     if (hit) {
@@ -427,20 +394,14 @@ viewer.addEventListener("click", e => {
   if (!segmentConfig[currentModel]) return;
 
   try {
-    const surface = viewer.surfaceFromPoint
-      ? viewer.surfaceFromPoint(lx, ly)
-      : null;
-
+    const surface = viewer.surfaceFromPoint ? viewer.surfaceFromPoint(lx, ly) : null;
     if (surface != null) {
-      // primitiveIndex: qual sub-mesh foi clicado (0 = osso base, 1+ = anomalias)
       const primIdx = surface.primitiveIndex ?? surface.primitive ?? 0;
-
       if (debugMode) {
         const matName = viewer.model?.materials?.[primIdx]?.name ?? "?";
         document.getElementById("coords").textContent +=
           `\nprimitive: ${primIdx}  material: ${matName}`;
       }
-
       const seg = findSegmentByPrimitive(primIdx);
       if (seg) {
         showSegLabel(e.clientX, e.clientY, seg);
@@ -452,7 +413,6 @@ viewer.addEventListener("click", e => {
   hideSegLabel();
 });
 
-// ── Painel lateral (casos)
 function openPanel()  {
   document.getElementById("panel").classList.add("open");
   document.getElementById("overlay").classList.add("open");
@@ -493,7 +453,6 @@ function buildPanel() {
   });
 }
 
-// ── Carrega modelo + hotspots
 function loadModel(file, btn) {
   document.documentElement.requestFullscreen().catch(() => {});
   currentModel = file;
@@ -508,7 +467,6 @@ function loadModel(file, btn) {
 function createHotspots(modelFile) {
   viewer.querySelectorAll(".hotspot, .hotspot-seg").forEach(el => el.remove());
 
-  // Hotspots normais (com bolinha) para labels de ossos
   if (labels[modelFile]) {
     labels[modelFile].forEach((label, i) => {
       const div = document.createElement("div");
@@ -530,7 +488,6 @@ function createHotspots(modelFile) {
     });
   }
 
-  // Hotspots invisíveis para anomalias de segmentação
   const config = segmentConfig[modelFile];
   if (config) {
     const offset = labels[modelFile] ? labels[modelFile].length : 0;
@@ -558,7 +515,6 @@ function toggleDebug() {
   btn.textContent = debugMode ? "⚙ Debug ON" : "⚙ Debug";
 }
 
-// ── Arranque
 buildPanel();
 currentModel = "foot__ankle.glb";
 document.getElementById("btn0").classList.add("active");
