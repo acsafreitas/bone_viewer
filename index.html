@@ -291,22 +291,9 @@ const segmentConfig = {
 };
 
 const fractureData = [
-  {
-    category: "Case 1",
-    models: [ { name: "Tentativa 1", file: "Segmentation1_6.glb" } ]
-  },
-  {
-    category: "Case 2",
-    models: [ { name: "Tentativa 1", file: "Segmentation2_1.glb" } ]
-  },
-  {
-    category: "Case 3",
-    models: [
-      { name: "Tentativa 1", file: "foot__ankle.glb" },
-      { name: "Tentativa 2", file: "foot__ankle.glb" },
-      { name: "Tentativa 3", file: "foot__ankle.glb" },
-    ]
-  },
+  { category: "Case 1", file: "Segmentation1_6.glb" },
+  { category: "Case 2", file: "Segmentation2_1.glb" },
+  { category: "Case 3", file: "foot__ankle.glb"     },
 ];
 
 const labels = {
@@ -548,30 +535,18 @@ function buildPanel() {
   const body = document.getElementById("panelBody");
   body.innerHTML = "";
   fractureData.forEach(cat => {
-    const catDiv = document.createElement("div");
-    catDiv.className = "category";
-    const header = document.createElement("div");
-    header.className = "category-header";
-    header.innerHTML = `<span>${cat.category}</span><span class="arrow">▼</span>`;
-    header.addEventListener("click", () => catDiv.classList.toggle("open"));
-    const list = document.createElement("div");
-    list.className = "model-list";
-    cat.models.forEach(model => {
-      const item = document.createElement("div");
-      item.className = "model-item";
-      item.innerHTML = `<div class="model-dot"></div><span>${model.name}</span>`;
-      item.addEventListener("click", () => {
-        if (activeModelItem) activeModelItem.classList.remove("active");
-        item.classList.add("active");
-        activeModelItem = item;
-        loadModel(model.file, null);
-        closePanel();
-      });
-      list.appendChild(item);
+    const item = document.createElement("div");
+    item.className = "model-item";
+    item.style.padding = "13px 18px";
+    item.innerHTML = `<div class="model-dot"></div><span>${cat.category}</span>`;
+    item.addEventListener("click", () => {
+      if (activeModelItem) activeModelItem.classList.remove("active");
+      item.classList.add("active");
+      activeModelItem = item;
+      loadModel(cat.file, null);
+      closePanel();
     });
-    catDiv.appendChild(header);
-    catDiv.appendChild(list);
-    body.appendChild(catDiv);
+    body.appendChild(item);
   });
 }
 
