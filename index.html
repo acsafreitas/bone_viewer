@@ -50,6 +50,25 @@
     }
     .topbar button.active { background: #0a84ff; }
 
+    /* hint "toca para ocultar" — aparece só em modelos com anomalias */
+    #hint {
+      position: fixed;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%) scaleX(-1); /* contra-espelha o body */
+      background: rgba(0,0,0,0.65);
+      color: #ccc;
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.4s;
+      white-space: nowrap;
+      z-index: 9999;
+    }
+    #hint.visible { opacity: 1; }
+
     #overlay {
       display: none;
       position: fixed;
@@ -161,7 +180,6 @@
     }
     .hotspot:hover::before, .hotspot.active::before { transform: scale(1.3); }
 
-    /* hotspot sem bolinha — só área clicável invisível para anomalias */
     .hotspot-seg::before { display: none; }
     .hotspot-seg { width: 60px; height: 60px; cursor: pointer; }
 
@@ -208,6 +226,8 @@
   <button id="openPanelBtn" onclick="openPanel()">Cases ▾</button>
 </div>
 
+<div id="hint"></div>
+
 <div id="overlay" onclick="closePanel()"></div>
 
 <div id="panel">
@@ -218,7 +238,6 @@
   <div class="panel-body" id="panelBody"></div>
 </div>
 
-<!-- LABEL FLUTUANTE DE SEGMENTO -->
 <div id="segLabel">
   <div class="seg-label-inner" id="segLabelInner">
     <div class="seg-label-name" id="segLabelName"></div>
@@ -248,21 +267,22 @@
 </model-viewer>
 
 <script>
+// ── Config de segmentos/anomalias por modelo ───────────────────
 const segmentConfig = {
 
   "Segmentation1_6.glb": {
     segments: [
-      { primitiveIndex: 1, label: "Corpo Livre", size: "", color: "#ff4d4d", pos: "-16.6481m 10.1325m -2.3308m" },
-      { primitiveIndex: 2, label: "Megessostose", size: "", color: "#ffaa00", pos: "12.4892m 6.0165m -62.8223m" },
-      { primitiveIndex: 3, label: "Fratura Falange Proximal", size: "", color: "#00e5ff", pos: "34.1863m -72.1478m 87.9066m" },
+      { primitiveIndex: 1, label: "Corpo Livre",              size: "", color: "#ff4d4d", pos: "-16.6481m 10.1325m -2.3308m"   },
+      { primitiveIndex: 2, label: "Megessostose",             size: "", color: "#ffaa00", pos: "12.4892m 6.0165m -62.8223m"    },
+      { primitiveIndex: 3, label: "Fratura Falange Proximal", size: "", color: "#00e5ff", pos: "34.1863m -72.1478m 87.9066m"   },
     ]
   },
 
   "Segmentation2_1.glb": {
     segments: [
-      { primitiveIndex: 1, label: "Corpo Livre", size: "", color: "#ff4d4d", pos: "1.8802m 44.6687m -60.8941m" },
+      { primitiveIndex: 1, label: "Corpo Livre", size: "", color: "#ff4d4d", pos: "1.8802m 44.6687m -60.8941m"   },
       { primitiveIndex: 2, label: "Corpo Livre", size: "", color: "#ffaa00", pos: "18.6720m -21.3461m -27.7317m" },
-      { primitiveIndex: 3, label: "Corpo Livre", size: "", color: "#00e5ff", pos: "-21.5648m 12.1754m 16.4439m" },
+      { primitiveIndex: 3, label: "Corpo Livre", size: "", color: "#00e5ff", pos: "-21.5648m 12.1754m 16.4439m"  },
       { primitiveIndex: 4, label: "Corpo Livre", size: "", color: "#a855f7", pos: "-24.1262m 49.6685m -41.7960m" },
       { primitiveIndex: 5, label: "Corpo Livre", size: "", color: "#22c55e", pos: "-27.0568m 40.6654m -31.7664m" },
     ]
@@ -273,15 +293,11 @@ const segmentConfig = {
 const fractureData = [
   {
     category: "Case 1",
-    models: [
-      { name: "Tentativa 1", file: "Segmentation1_6.glb" },
-    ]
+    models: [ { name: "Tentativa 1", file: "Segmentation1_6.glb" } ]
   },
   {
     category: "Case 2",
-    models: [
-      { name: "Tentativa 1", file: "Segmentation2_1.glb" },
-    ]
+    models: [ { name: "Tentativa 1", file: "Segmentation2_1.glb" } ]
   },
   {
     category: "Case 3",
@@ -320,10 +336,15 @@ const labels = {
   ]
 };
 
-let currentModel = null;
-let debugMode    = false;
+// ── Estado ─────────────────────────────────────────────────────
+let currentModel    = null;
+let debugMode       = false;
 let activeModelItem = null;
-let labelTimeout = null;
+let labelTimeout    = null;
+// Set de primitiveIndex dos ossos ocultados pelo utilizador
+let hiddenPrimitives = new Set();
+// Guarda cor original por primitiveIndex: { r, g, b, a, alphaMode }
+let originalMaterialState = {};
 
 const viewer        = document.getElementById("viewer");
 const segLabel      = document.getElementById("segLabel");
@@ -331,12 +352,85 @@ const segLabelInner = document.getElementById("segLabelInner");
 const labelName     = document.getElementById("segLabelName");
 const labelSize     = document.getElementById("segLabelSize");
 const labelArrow    = document.getElementById("segLabelArrow");
+const hint          = document.getElementById("hint");
 
-// ── Mostra a label.
-// O #segLabel tem scaleX(-1) próprio para contra-espelhar o body.
-// Como está em position:fixed dentro de um contexto com transform,
-// o eixo X do fixed também fica espelhado: left:0 é à DIREITA do ecrã.
-// Por isso: left = window.innerWidth - x - w/2  (espelha a posição)
+// ── Helpers de material ────────────────────────────────────────
+
+function getMaterial(primitiveIndex) {
+  return viewer.model?.materials?.[primitiveIndex] ?? null;
+}
+
+function saveMaterialState(primitiveIndex) {
+  if (originalMaterialState[primitiveIndex] !== undefined) return; // já guardado
+  const mat = getMaterial(primitiveIndex);
+  if (!mat) return;
+  const pbr = mat.pbrMetallicRoughness;
+  const c   = pbr?.baseColorFactor ?? [1, 1, 1, 1];
+  originalMaterialState[primitiveIndex] = {
+    r: c[0], g: c[1], b: c[2], a: c[3],
+    alphaMode: mat.alphaMode ?? "OPAQUE",
+  };
+}
+
+function setMaterialAlpha(primitiveIndex, alpha) {
+  const mat = getMaterial(primitiveIndex);
+  if (!mat) return;
+  const pbr = mat.pbrMetallicRoughness;
+  if (!pbr) return;
+  mat.setAlphaMode(alpha < 1 ? "BLEND" : (originalMaterialState[primitiveIndex]?.alphaMode ?? "OPAQUE"));
+  const c = pbr.baseColorFactor ?? [1, 1, 1, 1];
+  pbr.setBaseColorFactor([c[0], c[1], c[2], alpha]);
+}
+
+function restoreMaterial(primitiveIndex) {
+  const orig = originalMaterialState[primitiveIndex];
+  if (!orig) return;
+  const mat = getMaterial(primitiveIndex);
+  if (!mat) return;
+  mat.setAlphaMode(orig.alphaMode);
+  const pbr = mat.pbrMetallicRoughness;
+  if (pbr) pbr.setBaseColorFactor([orig.r, orig.g, orig.b, orig.a]);
+}
+
+// ── Ocultar/restaurar osso pelo primitiveIndex ─────────────────
+
+function hidePrimitive(primIdx) {
+  saveMaterialState(primIdx);
+  setMaterialAlpha(primIdx, 0);
+  hiddenPrimitives.add(primIdx);
+}
+
+function restoreAllHidden() {
+  hiddenPrimitives.forEach(idx => restoreMaterial(idx));
+  hiddenPrimitives.clear();
+}
+
+// ── Anomalias do modelo actual ─────────────────────────────────
+
+function getAnomalySet() {
+  const cfg = segmentConfig[currentModel];
+  if (!cfg) return new Set();
+  return new Set(cfg.segments.map(s => s.primitiveIndex));
+}
+
+function findSegmentByPrimitive(primitiveIndex) {
+  const cfg = segmentConfig[currentModel];
+  if (!cfg) return null;
+  return cfg.segments.find(s => s.primitiveIndex === primitiveIndex) ?? null;
+}
+
+// ── Hint ───────────────────────────────────────────────────────
+let hintTimeout = null;
+
+function showHint(msg) {
+  hint.textContent = msg;
+  hint.classList.add("visible");
+  clearTimeout(hintTimeout);
+  hintTimeout = setTimeout(() => hint.classList.remove("visible"), 3000);
+}
+
+// ── Label flutuante ────────────────────────────────────────────
+
 function showSegLabel(clientX, clientY, seg) {
   labelName.textContent = seg.label;
   labelSize.textContent = seg.size || "";
@@ -344,15 +438,11 @@ function showSegLabel(clientX, clientY, seg) {
 
   segLabelInner.style.setProperty("--lcolor", seg.color);
   labelArrow.style.setProperty("--lcolor", seg.color);
-
   segLabel.classList.add("visible");
 
   requestAnimationFrame(() => {
     const w = segLabel.offsetWidth;
     const h = segLabel.offsetHeight;
-    // O #segLabel não tem contra-espelhamento, fica espelhado com o body.
-    // O eixo X do fixed está invertido: left:0 = direita do ecrã.
-    // Então: left = window.innerWidth - clientX - w/2  posiciona sobre o clique.
     segLabel.style.left = (window.innerWidth - clientX - w / 2) + "px";
     segLabel.style.top  = (clientY - h - 16) + "px";
   });
@@ -366,12 +456,7 @@ function hideSegLabel() {
   segLabel.classList.remove("visible");
 }
 
-function findSegmentByPrimitive(primitiveIndex) {
-  if (!segmentConfig[currentModel]) return null;
-  return segmentConfig[currentModel].segments.find(
-    s => s.primitiveIndex === primitiveIndex
-  ) || null;
-}
+// ── Viewer click ───────────────────────────────────────────────
 
 viewer.addEventListener("click", e => {
   viewer.querySelectorAll(".hotspot").forEach(h => h.classList.remove("active"));
@@ -380,6 +465,7 @@ viewer.addEventListener("click", e => {
   const lx = e.clientX - rect.left;
   const ly = e.clientY - rect.top;
 
+  // Debug: coordenadas 3D
   if (debugMode) {
     const hit = viewer.positionAndNormalFromPoint(lx, ly);
     if (hit) {
@@ -391,29 +477,65 @@ viewer.addEventListener("click", e => {
     }
   }
 
-  if (!segmentConfig[currentModel]) return;
+  // Só actua se o modelo actual tem segmentos de anomalia
+  const hasSegs = !!segmentConfig[currentModel];
 
   try {
     const surface = viewer.surfaceFromPoint ? viewer.surfaceFromPoint(lx, ly) : null;
     if (surface != null) {
       const primIdx = surface.primitiveIndex ?? surface.primitive ?? 0;
+
       if (debugMode) {
         const matName = viewer.model?.materials?.[primIdx]?.name ?? "?";
         document.getElementById("coords").textContent +=
           `\nprimitive: ${primIdx}  material: ${matName}`;
       }
-      const seg = findSegmentByPrimitive(primIdx);
-      if (seg) {
-        showSegLabel(e.clientX, e.clientY, seg);
+
+      if (hasSegs) {
+        const anomalies = getAnomalySet();
+
+        if (anomalies.has(primIdx)) {
+          // Clicou numa anomalia → mostrar label
+          const seg = findSegmentByPrimitive(primIdx);
+          if (seg) showSegLabel(e.clientX, e.clientY, seg);
+        } else {
+          // Clicou num osso normal → ocultar esse osso
+          saveMaterialState(primIdx);
+          hidePrimitive(primIdx);
+          hideSegLabel();
+          if (hiddenPrimitives.size > 0) showHint("Toca no fundo para repor os ossos");
+        }
         return;
       }
     }
   } catch (_) {}
 
-  hideSegLabel();
+  // Clicou no fundo vazio — restaura todos os ossos ocultos
+  if (hasSegs && hiddenPrimitives.size > 0) {
+    restoreAllHidden();
+    hideSegLabel();
+    showHint("Toca num osso para o ocultar");
+  } else if (hasSegs) {
+    hideSegLabel();
+  }
 });
 
-function openPanel()  {
+// ── Modelo carregado ───────────────────────────────────────────
+
+viewer.addEventListener("load", () => {
+  // Limpa cache de estados originais (novo modelo)
+  originalMaterialState = {};
+  hiddenPrimitives.clear();
+
+  // Se o modelo tem anomalias, mostra o hint uma vez
+  if (segmentConfig[currentModel]) {
+    showHint("Toca num osso para o ocultar");
+  }
+});
+
+// ── Painel ─────────────────────────────────────────────────────
+
+function openPanel() {
   document.getElementById("panel").classList.add("open");
   document.getElementById("overlay").classList.add("open");
 }
@@ -453,16 +575,22 @@ function buildPanel() {
   });
 }
 
+// ── Carrega modelo ─────────────────────────────────────────────
+
 function loadModel(file, btn) {
   document.documentElement.requestFullscreen().catch(() => {});
   currentModel = file;
   hideSegLabel();
+  originalMaterialState = {};
+  hiddenPrimitives.clear();
   viewer.setAttribute("src", file);
   createHotspots(file);
   document.querySelectorAll(".topbar button[id^='btn']")
     .forEach(b => b.classList.remove("active"));
   if (btn) btn.classList.add("active");
 }
+
+// ── Hotspots ───────────────────────────────────────────────────
 
 function createHotspots(modelFile) {
   viewer.querySelectorAll(".hotspot, .hotspot-seg").forEach(el => el.remove());
@@ -507,6 +635,8 @@ function createHotspots(modelFile) {
   }
 }
 
+// ── Debug ──────────────────────────────────────────────────────
+
 function toggleDebug() {
   debugMode = !debugMode;
   const btn = document.getElementById("debugBtn");
@@ -514,6 +644,8 @@ function toggleDebug() {
   btn.classList.toggle("active", debugMode);
   btn.textContent = debugMode ? "⚙ Debug ON" : "⚙ Debug";
 }
+
+// ── Init ───────────────────────────────────────────────────────
 
 buildPanel();
 currentModel = "foot__ankle.glb";
