@@ -413,7 +413,7 @@ function showHint(msg) {
   hint.textContent = msg;
   hint.classList.add("visible");
   clearTimeout(hintTimeout);
-  hintTimeout = setTimeout(() => hint.classList.remove("visible"), 3000);
+  hintTimeout = setTimeout(() => hint.classList.remove("visible"), 1500);
 }
 
 // ── Label flutuante ────────────────────────────────────────────
