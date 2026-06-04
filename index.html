@@ -55,7 +55,7 @@
       position: fixed;
       bottom: 18px;
       left: 50%;
-      transform: translateX(-50%) scaleX(-1); /* contra-espelha o body */
+      transform: translateX(-50%); /* contra-espelha o body */
       background: rgba(0,0,0,0.65);
       color: #ccc;
       font-size: 12px;
@@ -288,12 +288,22 @@ const segmentConfig = {
     ]
   },
 
+    // ── CASE 3: Fixador externo + Tíbia partida ──────────────────
+  // primitive 0 → cinzento escuro  = Fixador Externo  (múltiplos hotspots ao longo da estrutura)
+  // primitive 1 → bege/amarelado   = Restante ossos do pé (ocultável, não é anomalia)
+  // primitive 2 → vermelho escuro  = Tíbia Partida
+  "Segmentation3_1.glb": {
+    segments: [
+      { primitiveIndex: 2, label: "Fratura da Tíbia",   size: "", color: "#ff4d4d", pos: "6.0210m 59.8490m -16.2220m"  },
+    ]
+  },
+
 };
 
 const fractureData = [
   { category: "Case 1", file: "Segmentation1_6.glb" },
   { category: "Case 2", file: "Segmentation2_1.glb" },
-  { category: "Case 3", file: "foot__ankle.glb"     },
+  { category: "Case 3", file: "Segmentation3_1.glb"     },
 ];
 
 const labels = {
